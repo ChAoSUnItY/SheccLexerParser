@@ -202,7 +202,6 @@ const char* token_kind_literals[] = {
 
 typedef struct {
     token_kind_t kind;
-    int line;
     int start_pos;
     int length;
 } token_t;
@@ -214,7 +213,6 @@ void token_str(token_t *token, char *str)
 }
 
 token_t cur_token;
-int cur_line = 1;
 int skip_newline = 1;
 
 void skip_whitespace()
@@ -233,7 +231,6 @@ void skip_whitespace()
         }
         if (skip_newline && is_newline(next_char)) {
             ++source_idx;
-            ++cur_line;
             continue;
         }
         break;
@@ -259,7 +256,6 @@ void advance(int offset)
 void update_token(token_kind_t kind, int length)
 {
     cur_token.kind = kind;
-    cur_token.line = cur_line;
     cur_token.start_pos = source_idx;
     cur_token.length = length;
     source_idx += length;
@@ -354,8 +350,154 @@ void next_token()
         update_token(T_char, length);
         return;
     }
+    if (next_char == '*') {
+        update_token(T_asterisk, 1);
+        return;
+    }
+    if (next_char == '&') {
+        next_char = peek_char(1);
+
+        if (next_char == '&') {
+            update_token(T_log_and, 2);
+            return;
+        }
+        if (next_char == '=') {
+            update_token(T_andeq, 2);
+            return;
+        }
+
+        update_token(T_ampersand, 1);
+        return;
+    }
+    if (next_char == '|') {
+        next_char = peek_char(1);
+
+        if (next_char == '|') {
+            update_token(T_log_or, 2);
+            return;
+        }
+        if (next_char == '=') {
+            update_token(T_oreq, 2);
+            return;
+        }
+
+        update_token(T_bit_or, 1);
+        return;
+    }
+    if (next_char == '<') {
+        next_char = peek_char(1);
+
+        if (next_char == '=') {
+            update_token(T_le, 2);
+            return;
+        }
+        if (next_char == '<') {
+            update_token(T_lshift, 2);
+            return;
+        }
+
+        update_token(T_lt, 1);
+        return;
+    }
+    if (next_char == '>') {
+        next_char = peek_char(1);
+
+        if (next_char == '=') {
+            update_token(T_ge, 2);
+            return;
+        }
+        if (next_char == '>') {
+            update_token(T_rshift, 2);
+            return;
+        }
+        
+        update_token(T_gt, 1);
+        return;
+    }
+    if (next_char == '!') {
+        next_char = peek_char(1);
+        
+        if (next_char == '=') {
+            update_token(T_noteq, 2);
+            return;
+        }
+
+        update_token(T_log_not, 1);
+        return;
+    }
+    if (next_char == '.') {
+        next_char = peek_char(1);
+
+        if (next_char == '.') {
+            next_char = peek_char(2);
+
+            if (next_char == '.') {
+                update_token(T_elipsis, 3);
+            }
+
+            abort();
+        }
+
+        update_token(T_dot, 1);
+        return;
+    }
+    if (next_char == '-') {
+        next_char = peek_char(1);
+
+        if (next_char == '>') {
+            update_token(T_arrow, 2);
+            return;
+        }
+
+        if (next_char == '-') {
+            update_token(T_decrement, 2);
+            return;
+        }
+
+        if (next_char == '=') {
+            update_token(T_minuseq, 2);
+            return;
+        }
+
+        update_token(T_minus, 1);
+        return;
+    }
+    if (next_char == '+') {
+        next_char = peek_char(1);
+
+        if (next_char == '+') {
+            update_token(T_increment, 2);
+            return;
+        }
+        if (next_char == '=') {
+            update_token(T_pluseq, 2);
+            return;
+        }
+
+        update_token(T_plus, 1);
+        return;
+    }
     if (next_char == ';') {
         update_token(T_semicolon, 1);
+        return;
+    }
+    if (next_char == '?') {
+        update_token(T_question, 1);
+        return;
+    }
+    if (next_char == ':') {
+        update_token(T_colon, 1);
+        return;
+    }
+    if (next_char == '=') {
+        next_char = peek_char(1);
+
+        if (next_char == '=') {
+            update_token(T_eq, 2);
+            return;
+        }
+        
+        update_token(T_assign, 1);
         return;
     }
 
@@ -364,6 +506,8 @@ void next_token()
 
         while (is_hex(peek_char(length + 1)))
             ++length;
+
+        error("TEST", source_idx);
 
         update_token(T_numeric, length);
     }
@@ -415,7 +559,7 @@ void next_token()
     }
 
     if (next_char == 0) {
-        update_token(T_eof, 1);
+        update_token(T_eof, 0);
         return;
     }
 }

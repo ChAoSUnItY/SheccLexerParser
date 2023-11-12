@@ -1,5 +1,10 @@
+#ifndef PREDEFS_C
+#define PREDEFS_C
+
 /* Limitations */
+
 #define MAX_TOKEN_LEN 256
+#define MAX_FILE_PATH_LEN 128
 #define MAX_ID_LEN 64
 #define MAX_LINE_LEN 256
 #define MAX_VAR_LEN 32
@@ -10,6 +15,8 @@
 #define MAX_FUNCS 256
 #define MAX_FUNC_TRIES 1536
 #define MAX_BLOCKS 750
+#define MAX_LINES 32768
+#define MAX_INCLUDE_INFOS 128
 #define MAX_TYPES 64
 #define MAX_IR_INSTR 32768
 #define MAX_GLOBAL_IR 256
@@ -29,3 +36,5 @@
 
 char *SOURCE;
 int source_idx = 0;
+
+#endif

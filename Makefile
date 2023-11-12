@@ -1,6 +1,6 @@
-objects = main lexer predefs
+objects = main lexer globals predefs
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -Wextra
 OUT ?= out
 
 all: $(objects)
