@@ -132,6 +132,7 @@ typedef enum {
     T_continue
 } token_kind_t;
 
+/* Debug usage, will remove in production */
 const char* token_kind_literals[] = {
     "T_numeric",
     "T_identifier",

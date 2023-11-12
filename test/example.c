@@ -1,3 +1,5 @@
+#include "included.c"
+
 int main() {
     if (0) {
 
