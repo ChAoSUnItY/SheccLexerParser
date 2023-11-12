@@ -1,0 +1,31 @@
+/* Limitations */
+#define MAX_TOKEN_LEN 256
+#define MAX_ID_LEN 64
+#define MAX_LINE_LEN 256
+#define MAX_VAR_LEN 32
+#define MAX_TYPE_LEN 32
+#define MAX_PARAMS 8
+#define MAX_LOCALS 900
+#define MAX_FIELDS 32
+#define MAX_FUNCS 256
+#define MAX_FUNC_TRIES 1536
+#define MAX_BLOCKS 750
+#define MAX_TYPES 64
+#define MAX_IR_INSTR 32768
+#define MAX_GLOBAL_IR 256
+#define MAX_LABEL 4096
+#define MAX_SOURCE 262144
+#define MAX_CODE 262144
+#define MAX_DATA 262144
+#define MAX_SYMTAB 65536
+#define MAX_STRTAB 65536
+#define MAX_HEADER 1024
+#define MAX_SECTION 1024
+#define MAX_ALIASES 1024
+#define MAX_CONSTANTS 1024
+#define MAX_CASES 128
+#define MAX_NESTING 128
+#define MAX_OPERAND_STACK_SIZE 32
+
+char *SOURCE;
+int source_idx = 0;
