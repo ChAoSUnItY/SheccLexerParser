@@ -5,6 +5,7 @@
 int *LINES;
 int lines_idx = 0;
 
+/* FIXME: Compute the actual line in the file somewhere here */
 void add_line(int idx)
 {
     LINES[lines_idx++] = idx;
