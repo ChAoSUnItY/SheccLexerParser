@@ -68,6 +68,7 @@ int is_hex(char c)
 typedef enum {
     T_numeric,
     T_identifier,
+    T_linebreak, /* used for preprocessor directive parsing */
     T_comma,  /* , */
     T_string, /* null-terminated string */
     T_char,
@@ -116,10 +117,15 @@ typedef enum {
     T_while,
     T_for,
     T_do,
-    T_define,
-    T_undef,
-    T_error,
-    T_include,
+    T_preproc_define,
+    T_preproc_undef,
+    T_preproc_error,
+    T_preproc_if,
+    T_preproc_elif,
+    T_preproc_ifdef,
+    T_preproc_else,
+    T_preproc_endif,
+    T_preproc_include,
     T_typedef,
     T_enum,
     T_struct,
@@ -136,6 +142,7 @@ typedef enum {
 const char* token_kind_literals[] = {
     "T_numeric",
     "T_identifier",
+    "T_linebreak", /* used for preprocessor directive parsing */
     "T_comma",  /* , */
     "T_string", /* null-terminated string */
     "T_char",
@@ -184,10 +191,15 @@ const char* token_kind_literals[] = {
     "T_while",
     "T_for",
     "T_do",
-    "T_define",
-    "T_undef",
-    "T_error",
-    "T_include",
+    "T_preproc_define",
+    "T_preproc_undef",
+    "T_preproc_error",
+    "T_preproc_if",
+    "T_preproc_elif",
+    "T_preproc_ifdef",
+    "T_preproc_else",
+    "T_preproc_endif",
+    "T_preproc_include",
     "T_typedef",
     "T_enum",
     "T_struct",
@@ -214,12 +226,19 @@ void token_str(token_t *token, char *str)
 
 token_t cur_token;
 int skip_newline = 1;
+int preproc_match;
+/*
+ * Allows replacing identifiers with alias value if alias exists. This is
+ * disabled in certain cases, e.g. #undef.
+ */
+int preproc_aliasing = 1;
 
 void skip_whitespace()
 {
     char next_char;
 
     while ((next_char = peek_char(0))) {
+        // TODO: Is it made for preproc lexing?
         if (is_linebreak(next_char))
         {
             source_idx += 2;
@@ -266,6 +285,91 @@ void next_token()
     skip_whitespace();
     char next_char = peek_char(0);
 
+    if (next_char == '#') {
+        char token[MAX_TOKEN_LEN];
+        int preproc_len = 1;
+
+        while (is_alnum(peek_char(preproc_len)))
+            preproc_len++;
+        strncpy(token, SOURCE + source_idx, preproc_len);
+        token[preproc_len] = 0;
+
+        if (!strcmp(token, "#include")) {
+            update_token(T_preproc_include, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#define")) {
+            update_token(T_preproc_define, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#undef")) {
+            update_token(T_preproc_undef, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#error")) {
+            update_token(T_preproc_error, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#if")) {
+            update_token(T_preproc_if, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#elif")) {
+            update_token(T_preproc_elif, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#else")) {
+            update_token(T_preproc_else, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#ifdef")) {
+            update_token(T_preproc_ifdef, preproc_len);
+            return;
+        }
+        if (!strcmp(token, "#endif")) {
+            update_token(T_preproc_endif, preproc_len);
+            return;
+        }
+
+        error("Unknown directive");
+    }
+
+    /* C-style comments */
+    if (next_char == '/') {
+        next_char = peek_char(1);
+
+        if (next_char == '*') {
+            /* in a comment, skip until end */
+            int offset = 2;
+
+            while ((next_char = peek_char(offset++))) {
+                if (next_char == '*') {
+                    next_char = peek_char(offset);
+
+                    if (next_char == '/') {
+                        source_idx += offset + 1;
+                        next_token();
+                        return;
+                    }
+                }
+            }
+        } else if (next_char == '/') {
+            int offset = 2;
+
+            while (!is_newline(peek_char(offset))) {
+                offset++;
+            }
+            source_idx += offset;
+            next_token();
+            return;
+        } else {
+            update_token(T_divide, 1);
+            return;
+        }
+
+        /* TODO: check invalid cases */
+        error("Unexpected '/'");
+    }
     if (next_char == '(') {
         update_token(T_open_bracket, 1);
         return;
@@ -507,8 +611,6 @@ void next_token()
         while (is_hex(peek_char(length + 1)))
             ++length;
 
-        error("TEST", source_idx);
-
         update_token(T_numeric, length);
     }
 
@@ -516,9 +618,8 @@ void next_token()
         char ident[MAX_ID_LEN];
         int length = 1;
 
-        while (is_ident(peek_char(length + 1)))
+        while (is_ident(peek_char(length)))
             ++length;
-        ++length;
 
         strncpy(ident, SOURCE + source_idx, length);
         token_kind_t kind = T_identifier;

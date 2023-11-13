@@ -76,12 +76,12 @@ void global_free()
     free(INCLUDE_INFOS);
 }
 
-void error(char *msg, int idx)
+void error(char *msg)
 {
-    include_info_t *file_path = find_include_info(idx);
-    int line_idx = find_line_idx(idx);
+    include_info_t *file_path = find_include_info(source_idx);
+    int line_idx = find_line_idx(source_idx);
     int line = LINES[line_idx - 1];
-    int offset = idx - line + 1;
+    int offset = source_idx - line + 1;
 
     printf("[%s: Ln %d, Col %d] Error: %s\n", file_path->include_file_path, line_idx, offset, msg);
     // abort();

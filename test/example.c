@@ -1,5 +1,9 @@
 #include "included.c"
 
+#include <stdlib.h>
+// KEK
+/* KEK
+*/
 int main() {
     if (0) {
 
@@ -24,4 +28,3 @@ int main() {
 
 #include "second.c"
 
-int

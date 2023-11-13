@@ -53,14 +53,14 @@ int main()
     SOURCE = malloc(MAX_SOURCE);
     read_file(file_path);
     // rewinds
-    //source_idx = 0;
+    source_idx = 0;
 
-    // for (next_token(); cur_token.kind != T_eof; next_token())
-    // {
-    //     token_str(&cur_token, token_string);
+    for (next_token(); cur_token.kind != T_eof; next_token())
+    {
+        token_str(&cur_token, token_string);
 
-    //     printf("TOKEN(%s, %s)\n", token_kind_literals[cur_token.kind], token_string);
-    // }
+        printf("TOKEN(%s, %s)\n", token_kind_literals[cur_token.kind], token_string);
+    }
 
     for (int i = 0; i < lines_idx; i++) {
         include_info_t *info = find_include_info(LINES[i]);
