@@ -1,3 +1,5 @@
+#ifndef GLOBALS_C
+#define GLOBALS_C
 #include <stdlib.h>
 #include <string.h>
 #include "predefs.c"
@@ -86,3 +88,5 @@ void error(char *msg)
     printf("[%s: Ln %d, Col %d] Error: %s\n", file_path->include_file_path, line_idx, offset, msg);
     // abort();
 }
+
+#endif
