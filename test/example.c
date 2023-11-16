@@ -1,30 +1,38 @@
 #include "included.c"
+#include <stdio.h>
 
-#include <stdlib.h>
+#define A 10
+#define B "Str"
+
+#define KEK() 10 \
+    + 10
+
+#error TESTING MESSAGE
+
 // KEK
 /* KEK
 */
-int main() {
-    if (0) {
+// int main() {
+//     if (0) {
+//         TEST(1)
+//     } else {
 
-    } else {
+//     }
 
-    }
+//     while (0) {
 
-    while (0) {
+//     }
 
-    }
+//     do {
 
-    do {
+//     } while (0);
 
-    } while (0);
-
-    for (;;) {
+//     for (;;) {
         
-    }
+//     }
     
-    return 0;
-}
+//     return 0;
+// }
 
-#include "second.c"
+// #include "second.c"
 

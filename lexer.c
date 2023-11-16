@@ -1,5 +1,7 @@
 /* C Language Lexical Analyzer */
 
+#include "dbg.c"
+
 int is_whitespace(char c)
 {
     return (c == ' ' || c == '\t');
@@ -117,15 +119,6 @@ typedef enum {
     T_while,
     T_for,
     T_do,
-    T_preproc_define,
-    T_preproc_undef,
-    T_preproc_error,
-    T_preproc_if,
-    T_preproc_elif,
-    T_preproc_ifdef,
-    T_preproc_else,
-    T_preproc_endif,
-    T_preproc_include,
     T_typedef,
     T_enum,
     T_struct,
@@ -135,82 +128,19 @@ typedef enum {
     T_case,
     T_break,
     T_default,
-    T_continue
+    T_continue,
+    /* Preprocessor phase usage only */
+    T_preproc_define,
+    T_preproc_path, /* Used for include path parsing */
+    T_preproc_undef,
+    T_preproc_error,
+    T_preproc_if,
+    T_preproc_elif,
+    T_preproc_ifdef,
+    T_preproc_else,
+    T_preproc_endif,
+    T_preproc_include,
 } token_kind_t;
-
-/* Debug usage, will remove in production */
-const char* token_kind_literals[] = {
-    "T_numeric",
-    "T_identifier",
-    "T_linebreak", /* used for preprocessor directive parsing */
-    "T_comma",  /* , */
-    "T_string", /* null-terminated string */
-    "T_char",
-    "T_open_bracket",  /* ( */
-    "T_close_bracket", /* ) */
-    "T_open_curly",    /* { */
-    "T_close_curly",   /* } */
-    "T_open_square",   /* [ */
-    "T_close_square",  /* ] */
-    "T_asterisk",      /* '*' */
-    "T_divide",        /* / */
-    "T_mod",           /* % */
-    "T_bit_or",        /* | */
-    "T_bit_xor",       /* ^ */
-    "T_bit_not",       /* ~ */
-    "T_log_and",       /* && */
-    "T_log_or",        /* || */
-    "T_log_not",       /* ! */
-    "T_lt",            /* < */
-    "T_gt",            /* > */
-    "T_le",            /* <= */
-    "T_ge",            /* >= */
-    "T_lshift",        /* << */
-    "T_rshift",        /* >> */
-    "T_dot",           /* . */
-    "T_arrow",         /* -> */
-    "T_plus",          /* + */
-    "T_minus",         /* - */
-    "T_minuseq",       /* -= */
-    "T_pluseq",        /* += */
-    "T_oreq",          /* |= */
-    "T_andeq",         /* &= */
-    "T_eq",            /* == */
-    "T_noteq",         /* != */
-    "T_assign",        /* = */
-    "T_increment",     /* ++ */
-    "T_decrement",     /* -- */
-    "T_question",      /* ? */
-    "T_colon",         /* : */
-    "T_semicolon",     /* ; */
-    "T_eof",           /* end-of-file (EOF) */
-    "T_ampersand",     /* & */
-    "T_return",
-    "T_if",
-    "T_else",
-    "T_while",
-    "T_for",
-    "T_do",
-    "T_preproc_define",
-    "T_preproc_undef",
-    "T_preproc_error",
-    "T_preproc_if",
-    "T_preproc_elif",
-    "T_preproc_ifdef",
-    "T_preproc_else",
-    "T_preproc_endif",
-    "T_preproc_include",
-    "T_typedef",
-    "T_enum",
-    "T_struct",
-    "T_sizeof",
-    "T_elipsis", /* ... */
-    "T_switch",
-    "T_case",
-    "T_break",
-    "T_default",
-    "T_continue"
-};
 
 typedef struct {
     token_kind_t kind;
@@ -226,6 +156,7 @@ void token_str(token_t *token, char *str)
 
 token_t cur_token;
 int skip_newline = 1;
+int preproc_path_parsing = 0;
 int preproc_match;
 /*
  * Allows replacing identifiers with alias value if alias exists. This is
@@ -272,63 +203,69 @@ void advance(int offset)
 /*
  * Updates cur_token and source_idx based on given length
  */
-void update_token(token_kind_t kind, int length)
+token_t *update_token(token_kind_t kind, int length)
 {
     cur_token.kind = kind;
     cur_token.start_pos = source_idx;
     cur_token.length = length;
     source_idx += length;
+    return &cur_token;
 }
 
-void next_token()
+token_t *next_token()
 {
     skip_whitespace();
     char next_char = peek_char(0);
+
+    if (preproc_path_parsing) {
+        char path[MAX_TOKEN_LEN];
+        int path_len = 1;
+
+        if (next_char != '<') {
+            error("Invalid include path syntax");
+        }
+
+        while (peek_char(path_len++) != '>');
+
+        return update_token(T_preproc_path, path_len);
+    }
 
     if (next_char == '#') {
         char token[MAX_TOKEN_LEN];
         int preproc_len = 1;
 
-        while (is_alnum(peek_char(preproc_len)))
-            preproc_len++;
+        while (is_alnum(peek_char(preproc_len))) {
+            ++preproc_len;
+        }
         strncpy(token, SOURCE + source_idx, preproc_len);
         token[preproc_len] = 0;
 
         if (!strcmp(token, "#include")) {
-            update_token(T_preproc_include, preproc_len);
-            return;
+            return update_token(T_preproc_include, preproc_len);
         }
         if (!strcmp(token, "#define")) {
-            update_token(T_preproc_define, preproc_len);
-            return;
+            return update_token(T_preproc_define, preproc_len);
         }
         if (!strcmp(token, "#undef")) {
-            update_token(T_preproc_undef, preproc_len);
-            return;
+            return update_token(T_preproc_undef, preproc_len);
         }
         if (!strcmp(token, "#error")) {
-            update_token(T_preproc_error, preproc_len);
-            return;
+            return update_token(T_preproc_error, preproc_len);
         }
         if (!strcmp(token, "#if")) {
-            update_token(T_preproc_if, preproc_len);
-            return;
+            return update_token(T_preproc_if, preproc_len);
         }
         if (!strcmp(token, "#elif")) {
-            update_token(T_preproc_elif, preproc_len);
-            return;
+            return update_token(T_preproc_elif, preproc_len);
         }
         if (!strcmp(token, "#else")) {
-            update_token(T_preproc_else, preproc_len);
-            return;
+            return update_token(T_preproc_else, preproc_len);
         }
         if (!strcmp(token, "#ifdef")) {
-            update_token(T_preproc_ifdef, preproc_len);
-            return;
+            return update_token(T_preproc_ifdef, preproc_len);
         }
         if (!strcmp(token, "#endif")) {
-            update_token(T_preproc_endif, preproc_len);
-            return;
+            return update_token(T_preproc_endif, preproc_len);
         }
 
         error("Unknown directive");
@@ -348,8 +285,7 @@ void next_token()
 
                     if (next_char == '/') {
                         source_idx += offset + 1;
-                        next_token();
-                        return;
+                        return next_token();
                     }
                 }
             }
@@ -360,51 +296,40 @@ void next_token()
                 offset++;
             }
             source_idx += offset;
-            next_token();
-            return;
+            return next_token();
         } else {
-            update_token(T_divide, 1);
-            return;
+            return update_token(T_divide, 1);
         }
 
         /* TODO: check invalid cases */
         error("Unexpected '/'");
     }
     if (next_char == '(') {
-        update_token(T_open_bracket, 1);
-        return;
+        return update_token(T_open_bracket, 1);
     }
     if (next_char == ')') {
-        update_token(T_close_bracket, 1);
-        return;
+        return update_token(T_close_bracket, 1);
     }
     if (next_char == '{') {
-        update_token(T_open_curly, 1);
-        return;
+        return update_token(T_open_curly, 1);
     }
     if (next_char == '}') {
-        update_token(T_close_curly, 1);
-        return;
+        return update_token(T_close_curly, 1);
     }
     if (next_char == '[') {
-        update_token(T_open_square, 1);
-        return;
+        return update_token(T_open_square, 1);
     }
     if (next_char == ']') {
-        update_token(T_close_square, 1);
-        return;
+        return update_token(T_close_square, 1);
     }
     if (next_char == ',') {
-        update_token(T_comma, 1);
-        return;
+        return update_token(T_comma, 1);
     }
     if (next_char == '^') {
-        update_token(T_bit_xor, 1);
-        return;
+        return update_token(T_bit_xor, 1);
     }
     if (next_char == '~') {
-        update_token(T_bit_not, 1);
-        return;
+        return update_token(T_bit_not, 1);
     }
     if (next_char == '"') {
         char cur_char;
@@ -417,7 +342,10 @@ void next_token()
                 if (!(cur_char == 'n' || cur_char == '"' || 
                     cur_char == 'r' || cur_char == '\'' ||
                     cur_char == 't' || cur_char == '\\')){
-                    abort();
+                    /* Offsets to the escaped character */
+                    source_idx += length - 1;
+
+                    error("Unknown escape character");
                 }
             }
 
@@ -425,11 +353,10 @@ void next_token()
         }
 
         // Checks right double quotation mark
-        if (peek_char(++length) != '"')
+        if (peek_char(length++) != '"')
             abort();
 
-        update_token(T_string, length);
-        return;
+        return update_token(T_string, length);
     }
     if (next_char == '\'') {
         char cur_char;
@@ -448,86 +375,71 @@ void next_token()
         }
 
         // Checks right quotation mark
-        if (peek_char(++length) != '\'')
+        if (peek_char(++length) != '\'') {
             abort();
+        }
 
-        update_token(T_char, length);
-        return;
+        return update_token(T_char, length);
     }
     if (next_char == '*') {
-        update_token(T_asterisk, 1);
-        return;
+        return update_token(T_asterisk, 1);
     }
     if (next_char == '&') {
         next_char = peek_char(1);
 
         if (next_char == '&') {
-            update_token(T_log_and, 2);
-            return;
+            return update_token(T_log_and, 2);
         }
         if (next_char == '=') {
-            update_token(T_andeq, 2);
-            return;
+            return update_token(T_andeq, 2);
         }
 
-        update_token(T_ampersand, 1);
-        return;
+        return update_token(T_ampersand, 1);
     }
     if (next_char == '|') {
         next_char = peek_char(1);
 
         if (next_char == '|') {
-            update_token(T_log_or, 2);
-            return;
+            return update_token(T_log_or, 2);
         }
         if (next_char == '=') {
-            update_token(T_oreq, 2);
-            return;
+            return update_token(T_oreq, 2);
         }
 
-        update_token(T_bit_or, 1);
-        return;
+        return update_token(T_bit_or, 1);
     }
     if (next_char == '<') {
         next_char = peek_char(1);
 
         if (next_char == '=') {
-            update_token(T_le, 2);
-            return;
+            return update_token(T_le, 2);
         }
         if (next_char == '<') {
-            update_token(T_lshift, 2);
-            return;
+            return update_token(T_lshift, 2);
         }
 
-        update_token(T_lt, 1);
-        return;
+        return update_token(T_lt, 1);
     }
     if (next_char == '>') {
         next_char = peek_char(1);
 
         if (next_char == '=') {
-            update_token(T_ge, 2);
-            return;
+            return update_token(T_ge, 2);
         }
         if (next_char == '>') {
-            update_token(T_rshift, 2);
-            return;
+            return update_token(T_rshift, 2);
         }
         
-        update_token(T_gt, 1);
-        return;
+        return update_token(T_gt, 1);
     }
     if (next_char == '!') {
         next_char = peek_char(1);
         
         if (next_char == '=') {
-            update_token(T_noteq, 2);
-            return;
+            return update_token(T_noteq, 2);
         }
 
-        update_token(T_log_not, 1);
-        return;
+        return update_token(T_log_not, 1);
     }
     if (next_char == '.') {
         next_char = peek_char(1);
@@ -536,90 +448,79 @@ void next_token()
             next_char = peek_char(2);
 
             if (next_char == '.') {
-                update_token(T_elipsis, 3);
+                return update_token(T_elipsis, 3);
             }
 
             abort();
         }
 
-        update_token(T_dot, 1);
-        return;
+        return update_token(T_dot, 1);
     }
     if (next_char == '-') {
         next_char = peek_char(1);
 
         if (next_char == '>') {
-            update_token(T_arrow, 2);
-            return;
+            return update_token(T_arrow, 2);
         }
 
         if (next_char == '-') {
-            update_token(T_decrement, 2);
-            return;
+            return update_token(T_decrement, 2);
         }
 
         if (next_char == '=') {
-            update_token(T_minuseq, 2);
-            return;
+            return update_token(T_minuseq, 2);
         }
 
-        update_token(T_minus, 1);
-        return;
+        return update_token(T_minus, 1);
     }
     if (next_char == '+') {
         next_char = peek_char(1);
 
         if (next_char == '+') {
-            update_token(T_increment, 2);
-            return;
+            return update_token(T_increment, 2);
         }
         if (next_char == '=') {
-            update_token(T_pluseq, 2);
-            return;
+            return update_token(T_pluseq, 2);
         }
 
-        update_token(T_plus, 1);
-        return;
+        return update_token(T_plus, 1);
     }
     if (next_char == ';') {
-        update_token(T_semicolon, 1);
-        return;
+        return update_token(T_semicolon, 1);
     }
     if (next_char == '?') {
-        update_token(T_question, 1);
-        return;
+        return update_token(T_question, 1);
     }
     if (next_char == ':') {
-        update_token(T_colon, 1);
-        return;
+        return update_token(T_colon, 1);
     }
     if (next_char == '=') {
         next_char = peek_char(1);
 
         if (next_char == '=') {
-            update_token(T_eq, 2);
-            return;
+            return update_token(T_eq, 2);
         }
         
-        update_token(T_assign, 1);
-        return;
+        return update_token(T_assign, 1);
     }
 
     if (is_digit(next_char)) {
         int length = 1;
 
-        while (is_hex(peek_char(length + 1)))
+        while (is_hex(peek_char(length))) {
             ++length;
+        }
 
-        update_token(T_numeric, length);
+        return update_token(T_numeric, length);
     }
 
     if (is_ident_start(next_char)) {
         char ident[MAX_ID_LEN];
         int length = 1;
 
-        while (is_ident(peek_char(length)))
+        while (is_ident(peek_char(length))) {
             ++length;
+        }
 
         strncpy(ident, SOURCE + source_idx, length);
         token_kind_t kind = T_identifier;
@@ -655,13 +556,31 @@ void next_token()
         if (!strcmp(ident, "continue"))
             kind = T_continue;
         
-        update_token(kind, length);
-        return;
+        return update_token(kind, length);
     }
 
     if (next_char == 0) {
-        update_token(T_eof, 0);
-        return;
+        return update_token(T_eof, 0);
     }
+
+    return 0;
 }
 
+int peek_token(token_kind_t kind)
+{
+    int original_idx = source_idx;
+    token_kind_t token_kind = next_token()->kind;
+    source_idx = original_idx;
+    return kind == token_kind;
+}
+
+void accept_token(token_kind_t kind)
+{
+    int original_idx = source_idx;
+    token_kind_t token_kind = next_token()->kind;
+    
+    if (kind != token_kind) {
+        source_idx = original_idx;
+        error("token kind mismatch");
+    }
+}

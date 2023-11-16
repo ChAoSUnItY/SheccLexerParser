@@ -1,0 +1,4 @@
+/* target: RISCV */
+#define ARCH_PREDEFINED "__riscv" /* Older versions of the GCC toolchain defined __riscv__ */
+#define ELF_MACHINE 0xf3
+#define ELF_FLAGS 0

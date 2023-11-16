@@ -1,4 +1,4 @@
-objects = main lexer globals predefs
+objects = main parser lexer globals predefs config
 CC = gcc
 CFLAGS = -Wall -Wextra
 OUT ?= out

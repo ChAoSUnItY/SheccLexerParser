@@ -1,3 +1,3 @@
-int func() {0;}
+// int func() {0;}
 
 #include "nested.c"
