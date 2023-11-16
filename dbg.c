@@ -6,12 +6,12 @@
 #include <stdio.h>
 
 /* Debug usage, will remove in production */
-const char* token_kind_literals[] = {
+const char *token_kind_literals[] = {
     "T_numeric",
     "T_identifier",
     "T_linebreak", /* used for preprocessor directive parsing */
-    "T_comma",  /* , */
-    "T_string", /* null-terminated string */
+    "T_comma",     /* , */
+    "T_string",    /* null-terminated string */
     "T_char",
     "T_open_bracket",  /* ( */
     "T_close_bracket", /* ) */
@@ -82,22 +82,21 @@ const char* token_kind_literals[] = {
 
 void dbg_file_structure()
 {
-	char line_string[MAX_LINE_LEN];
-   int len;
+    char line_string[MAX_LINE_LEN];
+    int len;
 
-	for (int i = 0; i < lines_idx; i++) {
-		include_info_t *info = find_include_info(LINES[i]);
-      if (i == lines_idx - 1) {
-         strcpy(line_string, SOURCE + LINES[i]);
-      } else {
-         len = LINES[i + 1] - LINES[i];
-         strncpy(line_string, SOURCE + LINES[i], len);
-         line_string[len] = 0;
-      }
-		
+    for (int i = 0; i < lines_idx; i++) {
+        include_info_t *info = find_include_info(LINES[i]);
+        if (i == lines_idx - 1) {
+            strcpy(line_string, SOURCE + LINES[i]);
+        } else {
+            len = LINES[i + 1] - LINES[i];
+            strncpy(line_string, SOURCE + LINES[i], len);
+            line_string[len] = 0;
+        }
 
-		printf("[(%-20s) %-5d (idx: %-5d)]: %s", info->include_file_path, i + 1, LINES[i], line_string);
-	}
+        printf("[(%-20s) %-5d (idx: %-5d)]: %s", info->include_file_path, i + 1, LINES[i], line_string);
+    }
 }
 
 #endif

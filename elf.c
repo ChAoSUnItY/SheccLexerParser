@@ -86,9 +86,8 @@ void elf_generate_header()
     elf_write_header_byte(0);
     elf_write_header_int(1);                          /* ELF version */
     elf_write_header_int(ELF_START + elf_header_len); /* entry point */
-    elf_write_header_int(0x34); /* program header offset */
-    elf_write_header_int(elf_header_len + elf_code_idx + elf_data_idx + 39 +
-                         elf_symtab_index +
+    elf_write_header_int(0x34);                       /* program header offset */
+    elf_write_header_int(elf_header_len + elf_code_idx + elf_data_idx + 39 + elf_symtab_index +
                          elf_strtab_index); /* section header offset */
     /* flags */
     elf_write_header_int(ELF_FLAGS);
@@ -195,8 +194,7 @@ void elf_generate_sections()
     elf_write_section_int(3);
     elf_write_section_int(0);
     elf_write_section_int(0);
-    elf_write_section_int(elf_header_len + elf_code_idx + elf_data_idx +
-                          elf_symtab_index);
+    elf_write_section_int(elf_header_len + elf_code_idx + elf_data_idx + elf_symtab_index);
     elf_write_section_int(elf_strtab_index); /* size */
     elf_write_section_int(0);
     elf_write_section_int(0);
@@ -208,8 +206,7 @@ void elf_generate_sections()
     elf_write_section_int(3);
     elf_write_section_int(0);
     elf_write_section_int(0);
-    elf_write_section_int(elf_header_len + elf_code_idx + elf_data_idx +
-                          elf_symtab_index + elf_strtab_index);
+    elf_write_section_int(elf_header_len + elf_code_idx + elf_data_idx + elf_symtab_index + elf_strtab_index);
     elf_write_section_int(39);
     elf_write_section_int(0);
     elf_write_section_int(0);

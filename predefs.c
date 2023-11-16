@@ -226,9 +226,9 @@ typedef struct {
 } trie_t;
 
 typedef struct include_info_t {
-	int start_idx;
-	int end_idx;
-	char include_file_path[MAX_FILE_PATH_LEN];
+    int start_idx;
+    int end_idx;
+    char include_file_path[MAX_FILE_PATH_LEN];
 } include_info_t;
 
 #endif

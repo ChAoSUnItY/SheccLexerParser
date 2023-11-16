@@ -7,22 +7,22 @@
 #include "dbg.c"
 #include "elf.c"
 #include "globals.c"
-#include "predefs.c"
 #include "lexer.c"
 #include "parser.c"
+#include "predefs.c"
 
 int main()
 {
-	global_init();
+    global_init();
 
-	FILE_PATH = "test/example.c";
-	SOURCE = malloc(MAX_SOURCE);
-	
+    FILE_PATH = "test/example.c";
+    SOURCE = malloc(MAX_SOURCE);
+
     parse(FILE_PATH);
 
-	dbg_file_structure();
+    dbg_file_structure();
 
-	global_release();
+    global_release();
 
-	return 0;
+    return 0;
 }
