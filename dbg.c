@@ -77,7 +77,7 @@ const char* token_kind_literals[] = {
     "T_preproc_ifdef",
     "T_preproc_else",
     "T_preproc_endif",
-    "T_preproc_include"
+    "T_preproc_include",
 };
 
 void dbg_file_structure()
