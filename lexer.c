@@ -1,13 +1,15 @@
 /* C Language Lexical Analyzer */
 
+#ifndef LEXER_C
+#define LEXER_C
 #include "dbg.c"
+
+char peek_char(int offset);
 
 int is_whitespace(char c)
 {
     return (c == ' ' || c == '\t');
 }
-
-char peek_char(int offset);
 
 /* is it backslash-newline? */
 int is_linebreak(char c)
@@ -23,8 +25,7 @@ int is_newline(char c)
 /* is it alphabet, number or '_'? */
 int is_alnum(char c)
 {
-    return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-            (c >= '0' && c <= '9') || (c == '_'));
+    return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '_'));
 }
 
 int is_ident_start(char c)
@@ -44,8 +45,7 @@ int is_digit(char c)
 
 int is_hex(char c)
 {
-    return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == 'x' ||
-            (c >= 'A' && c <= 'F'));
+    return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == 'x' || (c >= 'A' && c <= 'F'));
 }
 
 // int is_numeric(char buffer[])
@@ -71,8 +71,8 @@ typedef enum {
     T_numeric,
     T_identifier,
     T_linebreak, /* used for preprocessor directive parsing */
-    T_comma,  /* , */
-    T_string, /* null-terminated string */
+    T_comma,     /* , */
+    T_string,    /* null-terminated string */
     T_char,
     T_open_bracket,  /* ( */
     T_close_bracket, /* ) */
@@ -150,11 +150,91 @@ typedef struct {
 
 void token_str(token_t *token, char *str)
 {
+    if (token->kind == T_string) {
+        /* Discards "" and transform escaped character */
+        int string_idx, output_idx = 0;
+
+        for (string_idx = 1; string_idx < token->length - 1;) {
+            char cur_char = SOURCE[token->start_pos + string_idx];
+
+            if (cur_char == '\\') {
+                string_idx++;
+                cur_char = SOURCE[token->start_pos + string_idx];
+
+                if (cur_char == 'n') {
+                    str[output_idx++] = '\n';
+                    continue;
+                }
+                if (cur_char == '"') {
+                    str[output_idx++] = '"';
+                    continue;
+                }
+                if (cur_char == 'r') {
+                    str[output_idx++] = '\r';
+                    continue;
+                }
+                if (cur_char == '\'') {
+                    str[output_idx++] = '\'';
+                    continue;
+                }
+                if (cur_char == 't') {
+                    str[output_idx++] = '\t';
+                    continue;
+                }
+                if (cur_char == '\\') {
+                    str[output_idx++] = '\\';
+                    continue;
+                }
+
+                error("Internal compiler error: esacped character should be checked in lexer");
+            }
+
+            str[output_idx] = cur_char;
+            string_idx++;
+            output_idx++;
+        }
+
+        str[output_idx] = 0;
+        return;
+    }
+    if (token->kind == T_char) {
+        /* Discards '' and transform escaped character */
+        char cur_char = SOURCE[token->start_pos + 1];
+
+        if (cur_char == '\\') {
+            cur_char = SOURCE[token->start_pos + 2];
+
+            if (cur_char == 'n') {
+                str[0] = '\n';
+            } else if (cur_char == '"') {
+                str[0] = '"';
+            } else if (cur_char == 'r') {
+                str[0] = '\r';
+            } else if (cur_char == '\'') {
+                str[0] = '\'';
+            } else if (cur_char == 't') {
+                str[0] = '\t';
+            } else if (cur_char == '\\') {
+                str[0] = '\\';
+            } else {
+                error("Internal compiler error: esacped character should be checked in lexer");
+            }
+        }
+
+        str[0] = cur_char;
+        str[1] = 0;
+        return;
+    }
     strncpy(str, SOURCE + token->start_pos, token->length);
     str[token->length] = 0;
 }
 
 token_t cur_token;
+/*
+ * Used after a token is peeked and going to be consumed to prevent second
+ * tokenize process.
+ */
+int peek_offset = 0;
 int skip_newline = 1;
 int preproc_path_parsing = 0;
 int preproc_match;
@@ -170,8 +250,7 @@ void skip_whitespace()
 
     while ((next_char = peek_char(0))) {
         // TODO: Is it made for preproc lexing?
-        if (is_linebreak(next_char))
-        {
+        if (is_linebreak(next_char)) {
             source_idx += 2;
             continue;
         }
@@ -200,6 +279,17 @@ void advance(int offset)
     source_idx += offset;
 }
 
+token_t *next_token();
+void skip_macro_body()
+{
+    while (!is_newline(peek_char(0))) {
+        next_token();
+    }
+
+    skip_newline = 1;
+    skip_whitespace();
+}
+
 /*
  * Updates cur_token and source_idx based on given length
  */
@@ -214,6 +304,13 @@ token_t *update_token(token_kind_t kind, int length)
 
 token_t *next_token()
 {
+    /* fast path for peek and consume strategy */
+    if (peek_offset) {
+        source_idx += peek_offset;
+        peek_offset = 0;
+        return &cur_token;
+    }
+
     skip_whitespace();
     char next_char = peek_char(0);
 
@@ -225,7 +322,8 @@ token_t *next_token()
             error("Invalid include path syntax");
         }
 
-        while (peek_char(path_len++) != '>');
+        while (peek_char(path_len++) != '>')
+            ;
 
         return update_token(T_preproc_path, path_len);
     }
@@ -339,9 +437,8 @@ token_t *next_token()
             if (cur_char == '\\') {
                 cur_char = peek_char(++length);
 
-                if (!(cur_char == 'n' || cur_char == '"' || 
-                    cur_char == 'r' || cur_char == '\'' ||
-                    cur_char == 't' || cur_char == '\\')){
+                if (!(cur_char == 'n' || cur_char == '"' || cur_char == 'r' || cur_char == '\'' || cur_char == 't' ||
+                      cur_char == '\\')) {
                     /* Offsets to the escaped character */
                     source_idx += length - 1;
 
@@ -367,9 +464,8 @@ token_t *next_token()
         if (cur_char == '\\') {
             cur_char = peek_char(++length);
 
-            if (!(cur_char == 'n' || cur_char == 'r' ||
-                cur_char == '\'' || cur_char == '"' ||
-                cur_char == 't' || cur_char == '\\')) {
+            if (!(cur_char == 'n' || cur_char == 'r' || cur_char == '\'' || cur_char == '"' || cur_char == 't' ||
+                  cur_char == '\\')) {
                 abort();
             }
         }
@@ -429,12 +525,12 @@ token_t *next_token()
         if (next_char == '>') {
             return update_token(T_rshift, 2);
         }
-        
+
         return update_token(T_gt, 1);
     }
     if (next_char == '!') {
         next_char = peek_char(1);
-        
+
         if (next_char == '=') {
             return update_token(T_noteq, 2);
         }
@@ -500,7 +596,7 @@ token_t *next_token()
         if (next_char == '=') {
             return update_token(T_eq, 2);
         }
-        
+
         return update_token(T_assign, 1);
     }
 
@@ -555,7 +651,7 @@ token_t *next_token()
             kind = T_default;
         if (!strcmp(ident, "continue"))
             kind = T_continue;
-        
+
         return update_token(kind, length);
     }
 
@@ -570,17 +666,20 @@ int peek_token(token_kind_t kind)
 {
     int original_idx = source_idx;
     token_kind_t token_kind = next_token()->kind;
+    peek_offset = source_idx - original_idx;
     source_idx = original_idx;
     return kind == token_kind;
 }
 
-void accept_token(token_kind_t kind)
+void expect_token(token_kind_t kind)
 {
     int original_idx = source_idx;
     token_kind_t token_kind = next_token()->kind;
-    
+
     if (kind != token_kind) {
         source_idx = original_idx;
         error("token kind mismatch");
     }
 }
+
+#endif
