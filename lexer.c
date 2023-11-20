@@ -682,4 +682,14 @@ void expect_token(token_kind_t kind)
     }
 }
 
+int accept_token(token_kind_t kind)
+{
+    if (peek_token(kind)) {
+        next_token();
+        return 1;
+    }
+
+    return 0;
+}
+
 #endif
