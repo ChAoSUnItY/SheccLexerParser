@@ -7,8 +7,6 @@
 #define KEK() 10 \
     + 10
 
-#error TESTING MESSAGE
-
 // KEK
 /* KEK
 */

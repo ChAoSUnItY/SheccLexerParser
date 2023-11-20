@@ -243,6 +243,11 @@ int preproc_match;
  * disabled in certain cases, e.g. #undef.
  */
 int preproc_aliasing = 1;
+/*
+ * Point to the first character after where the macro has been called. It is
+ * needed when returning from the macro body.
+ */
+int macro_return_idx;
 
 void skip_whitespace()
 {
@@ -664,17 +669,30 @@ token_t *next_token()
 
 int peek_token(token_kind_t kind)
 {
-    int original_idx = source_idx;
-    token_kind_t token_kind = next_token()->kind;
-    peek_offset = source_idx - original_idx;
-    source_idx = original_idx;
+    token_kind_t token_kind;
+
+    if (peek_offset == 0) {
+        int original_idx = source_idx;
+        token_kind = next_token()->kind;
+        peek_offset = source_idx - original_idx;
+        source_idx = original_idx;
+    } else {
+        token_kind = cur_token.kind;
+    }
+
     return kind == token_kind;
 }
 
 void expect_token(token_kind_t kind)
 {
     int original_idx = source_idx;
-    token_kind_t token_kind = next_token()->kind;
+    token_kind_t token_kind;
+
+    if (peek_offset == 0) {
+        token_kind = next_token()->kind;
+    } else {
+        token_kind = cur_token.kind;
+    }
 
     if (kind != token_kind) {
         source_idx = original_idx;
